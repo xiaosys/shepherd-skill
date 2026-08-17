@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Shepherd"
+  short_description: "Route subagents and worktrees by risk and evidence"
+  default_prompt: "Use $codex-shepherd to decide whether to delegate this task and accept only evidence-backed results."
