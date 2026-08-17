@@ -1,4 +1,4 @@
-# Codex Shepherd Skill
+# Shepherd Skill
 
 An evidence-driven Skill for deciding whether a task merits delegation, coordinating subagents and Git worktrees, and accepting only verifiable results.
 
