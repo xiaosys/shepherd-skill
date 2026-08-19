@@ -1,11 +1,11 @@
 ---
 name: codex-shepherd
-description: "Coordinate Codex subagents, Git worktrees, and independent reviews with the lowest practical coordination cost and evidence-backed acceptance. Use when the user or applicable AGENTS.md explicitly requests a shepherd or dispatcher mode, subagents, parallel work, worktrees, multi-package coordination, or independent review. Decide first whether delegation is beneficial; choose the currently available model by uncertainty, risk, verifiability, and independence. Do not use for ordinary single-agent edits, simple explanations, or tasks without independently verifiable subproblems."
+description: "Reduce expensive-model execution cost in Codex with Planner–Executor routing: Sol reads sources of truth, plans, arbitrates, and performs final acceptance; Luna executes bounded implementation and tests; Terra is used only after evidence confirms a capability gap. Also coordinates subagents, Git worktrees, independent review, and evidence-backed acceptance. Use for shepherd or dispatcher mode, Sol-plans/Luna-executes workflows, reducing Sol usage, parallel agents, worktrees, multi-package coordination, or independent review. Do not use for simple explanations or tiny edits closed by one deterministic check."
 ---
 
 # Codex Shepherd
 
-Use this Skill as a delegation gatekeeper and acceptance controller. Optimize for verifiable progress, not agent count. Direct work, serial work, and declining delegation are all valid outcomes.
+Use this Skill as a model router, delegation gatekeeper, and acceptance controller. Separate high-uncertainty reasoning from high-throughput execution: Sol is the Planner/Coordinator/Final Reviewer, Luna is the Executor, and Terra is an evidence-triggered capability escalation. Optimize cost-weighted use of expensive models and verifiable progress, not agent count. Raw token totals may increase even when cost falls.
 
 ## 1. Establish source of truth and authorization
 
@@ -20,33 +20,64 @@ Before planning or dispatching:
 
 If the Git root, baseline, target, authority, dirty state, or acceptance definition is untrustworthy, restore context or return `BLOCKED` before dispatching. Never automatically include, overwrite, clean, or commit unknown dirty state, user changes, or untracked files.
 
-## 2. Pass the delegation-benefit gate
+## 2. Choose the minimum sufficient mode
+
+| Mode | Use when | Default route |
+| --- | --- | --- |
+| `direct` | Explanation, small read-only check, or tiny edit closed by one deterministic verification | Main agent completes directly |
+| `routed` | Medium/large package with a bounded contract and implementation or test work that would consume substantial context | Sol plans → one Luna worker executes → Sol accepts |
+| `parallel` | At least two truly independent packages with non-overlapping paths and separate acceptance oracles | Sol coordinates → isolated workers → serial integration |
+
+When the user explicitly asks for Sol to plan and Luna or another cheaper model to execute, `routed` is the default. Do not keep Sol in the execution loop merely because it could complete the work. Use `direct` only when writing and accepting a delegation contract would cost at least as much as the task itself, and state that reason.
+
+If the main agent is not Sol, model override is unavailable, or the worker's actual model cannot be verified, report the limitation. Never execute with the parent model and claim successful routing.
+
+### Delegation-benefit gate
 
 Delegate only when the benefit clearly exceeds the costs of task specification, waiting, integration, and conflicts:
 
 - Independent work shortens the critical path.
+- Moving bounded execution from Sol to Luna reduces cost-weighted model usage.
 - Large searches, logs, or test output benefit from isolated context.
 - Subtasks have non-overlapping boundaries and independent acceptance methods.
 - Fresh context or a different model could change the decision.
 
-Work directly when one local change and deterministic verification close the task, subtasks share the same implementation boundary, no acceptance oracle can be defined, or coordination costs exceed execution costs.
+Use `direct` when one local change and deterministic verification close the task, subtasks share the same implementation boundary, no acceptance oracle can be defined, or coordination costs exceed execution costs.
 
-Default to one subagent. Add concurrency only when the dependency graph proves independence and never exceed live runtime capacity. Default to one delegation layer; workers do not recursively delegate unless the task contract and applicable rules explicitly allow it.
+In `routed` mode, default to one Luna worker. Enter `parallel` only when the dependency graph proves independence and never exceed live runtime capacity. Allow one active writer and one delegation layer; workers do not recursively delegate. Prefer a follow-up that corrects the existing worker's contract over creating new agents for ordinary rework.
 
 If the user explicitly requests real subagents, dispatch at least one bounded subtask with an acceptance method. If the runtime cannot support it or no safe boundary/oracle exists, state the limitation; never present local simulation, ordinary tool calls, or role-play as delegation. Preserve capacity for implementation, review, or recovery.
 
-## 3. Route by task properties
+## 3. Fix Planner–Executor responsibilities
+
+### Sol: Planner / Coordinator / Final Reviewer
+
+Sol reads source-of-truth requirements, resolves direction-changing ambiguity, defines modules and safety boundaries, selects the base SHA/worktree/acceptance oracle, writes bounded contracts, reviews the actual diff and evidence, tests a minimal counterexample, and decides acceptance, rework, escalation, integration, or stop.
+
+In `routed` mode, Sol does not perform large bounded implementation, mechanical searches, full-suite log processing, or repeated fixes. When the contract is wrong, Sol rewrites it and reuses the existing worker rather than taking execution back.
+
+### Luna: default Executor
+
+Luna implements code, tests, migrations, or documentation inside exact owned paths; performs mechanical search, focused tests, related regressions, and contract-required full gates; and returns actual SHAs, paths, command results, untested items, and risks.
+
+When available, default to `gpt-5.6-luna`; a long but well-specified execution chain may use `reasoning_effort=high`. When overriding the model, use `fork_turns=none` and pass only the bounded contract and necessary source paths—not the full conversation or Sol's reasoning.
+
+### Terra: escalation Executor
+
+Escalate to `gpt-5.6-terra` only after a reproducible capability gap remains after ruling out missing context, an ambiguous contract, environment failures, permissions, and write conflicts. A first failure or a large file count is not escalation evidence.
+
+### Capability-tier reference
 
 Assess uncertainty, failure blast radius, acceptance-oracle strength, and parallel independence. Do not mechanically escalate models based only on file count or a first failure.
 
 | Task properties | Preferred route in the current GPT-5.6 family |
 | --- | --- |
 | Clear, repeatable, high-throughput work with a strong oracle | Luna |
-| Normal multi-file implementation, cross-file understanding, or unexplained debugging | Terra |
+| Normal multi-file implementation, cross-file understanding, or unexplained debugging | Sol tightens the contract, then Luna; Terra only for a confirmed capability gap |
 | High uncertainty, architecture, security, permissions, migrations, shared contracts, or final arbitration | Sol |
 | Scope checking or an adversarial complementary view | Optional fresh external reviewer |
 
-Use the lowest sufficient reasoning level: Low or Medium for simple tasks; High for complex logic or review; XHigh or Max only for the hardest problems. Prefer native Codex `explorer`, `worker`, and `default` roles. Do not require a global default subagent model or create a custom agent before repeated drift demonstrates the need.
+Use the lowest sufficient reasoning level: Low or Medium for simple tasks; High for a long Luna execution chain, complex logic, or review; XHigh or Max only for the hardest problems. Prefer native Codex `explorer`, `worker`, and `default` roles. Do not require a global default subagent model or create a custom agent before repeated drift demonstrates the need.
 
 Model names and override capabilities are runtime facts. If the user specifies an unavailable exact model, report the supported options and request a substitute; never silently replace it. When the model catalog changes, route by capability tier rather than copying obsolete names.
 
@@ -61,9 +92,10 @@ goal: result this subtask must deliver
 target_root: absolute target directory, equal to the real Git root
 base_sha: shared verifiable baseline; use not_applicable outside Git
 mode: read_only | write
+target_modules: target modules
 owned_paths: exclusive write boundary; use read_only for read-only work
 depends_on: preceding package or none
-shared_contracts: shared contracts owned or prohibited by this package; none if absent
+allow_shared_contract_changes: false or an explicit list
 do_not_touch: forbidden paths, contracts, data, and external systems
 acceptance: observable, decidable completion criteria
 verification: required commands or manual checks
@@ -80,6 +112,7 @@ Give workers purpose, constraints, and acceptance—not a full chat transcript, 
 - Before creating a worktree, check for an existing worktree by task ID, branch, and baseline; reuse it when safe.
 - Multiple write candidates use separate worktrees and one coordinator serially integrates them. Workers do not merge, rebase, or resolve shared conflicts in the coordinator worktree.
 - For multiple candidate releases or integrations, use the dedicated worktree-release-coordination workflow instead of duplicating its process here.
+- The Executor runs the full suite once on the exact candidate SHA. Sol verifies logs and artifacts and runs only necessary focused checks or a minimal counterexample. Repeat full gates only when the SHA, migration head, dependency set, or environment changes.
 - Do not automatically delete worktrees, branches, backups, or user files. Report cleanup recommendations unless separately authorized.
 
 ## 6. Review candidates with evidence
@@ -88,6 +121,7 @@ Require each candidate to return:
 
 ```yaml
 status: CANDIDATE | PARTIAL | BLOCKED
+executor_model: actual model or unknown
 base_sha: actual baseline
 candidate_sha: candidate commit; use uncommitted when absent
 changed_paths: actual paths
@@ -123,12 +157,14 @@ Measure progress in accepted units, evidence packages, and external gates—not 
 
 Classify failure before retrying:
 
-- Missing context: dispatch an explorer or reread source of truth.
+- Missing context: pause the writing worker and let Sol reread source of truth. Dispatch an Explorer only when independent read-only search has clear value; then update the contract and reuse the original worker by follow-up rather than adding another writer.
 - Ambiguous request: rewrite the contract yourself.
 - Environment or dependency error: diagnose the environment; do not hide it by switching models.
-- Capability gap: then increase model capability or reasoning level.
+- Reproducible capability gap: Luna → Terra; if that still fails, Sol arbitrates.
 - Write conflict: stop parallel work and reorder ownership and integration.
 - Reviewer or tool failure: retain untested status; repair the call or choose an independent review path.
+
+Before escalating to Terra, record minimum capability evidence: `failed_contract`, a `reproduction_command` under the same contract and environment, a stable `failure_signature`, `excluded_causes` (context, contract, environment, permission, conflict), and `why_luna_is_insufficient`. A missing field means the capability gap is unproven.
 
 If the same failure cause occurs twice, do not repeat the route. Return to source of truth, contract, and assumptions. Stop accepting new candidates if target SHA changes, unexplained dirty state appears, acceptance definitions conflict, or a test failure cannot be explained.
 
@@ -138,14 +174,19 @@ Update the user only after the truth snapshot is established, work is dispatched
 
 Maintain a compact package table: `package | owner | base | state | evidence | blocker`. Stop at `stop_after`; do not begin the next package unless the user's termination condition explicitly requires it.
 
+## 10. Measure whether cost actually fell
+
+Do not infer savings merely because Luna was called, and do not promise that raw token totals will fall. When usage is available, record `input`, `cached_input`, `uncached_input`, and `output` by model. Compare Sol uncached input/output and cost-weighted usage, while also reporting total tokens so many cheap agents cannot hide context inflation. Without a baseline or usage data, say "model routing implemented; savings unmeasured" and never claim a savings percentage.
+
 Final delivery must state:
 
 ```text
 Outcome: ACCEPTED | PARTIAL | BLOCKED
-Direct or delegated: choice and reason
+Mode / routing: direct | Sol → Luna → Sol | parallel
 Baseline / final SHA: exact value or not_applicable
 Accepted work: candidate and scope
 Verification: actual checks and results
+Usage evidence: measured metrics or unmeasured
 Unverified: untested items and external gates
 Release boundary: local | staging | pilot | production
 Next: one specific action or none

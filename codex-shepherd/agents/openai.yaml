@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex Shepherd"
-  short_description: "Route subagents and worktrees by risk and evidence"
-  default_prompt: "Use $codex-shepherd to decide whether to delegate this task and accept only evidence-backed results."
+  short_description: "Sol plans and accepts; Luna executes; evidence controls escalation"
+  default_prompt: "Use $codex-shepherd to route planning and final acceptance to Sol, bounded execution to Luna, and escalate only with evidence."
