@@ -1,4 +1,4 @@
 interface:
   display_name: "Shepherd"
   short_description: "Sol 规划与验收，Luna 执行，以证据控制升级和收口"
-  default_prompt: "使用 $shepherd：由 Sol 规划和验收、Luna 执行，显式分流无法证明时先停止。"
+  default_prompt: "使用 $shepherd：由 Sol 规划和验收、Luna 从 high reasoning 起步执行，显式分流无法证明时先停止。"

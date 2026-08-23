@@ -13,6 +13,7 @@ route_receipt:
   mode: routed | parallel
   planner_model: 实际模型或 unknown
   requested_executor: 精确模型
+  requested_reasoning_effort: Luna 默认 high；其他模型写精确请求值
   agent_role: explorer | worker | default
   model_evidence: accepted_override | runtime_report | unknown
   dispatch_id: 运行时返回的 Agent／任务 ID
@@ -21,9 +22,9 @@ route_receipt:
 
 证据解释：
 
-- accepted_override：运行时工具契约保证 model override，并且本次带精确模型的调用已被接受；
-- runtime_report：运行时提供了可核对的实际模型字段；
-- unknown：只有自述、猜测、旧文档，或工具可能静默降级。
+- accepted_override：运行时工具契约保证 model 与 reasoning_effort override，并且本次带精确请求值的调用已被接受；
+- runtime_report：运行时提供了可核对的实际模型与 reasoning_effort 字段；
+- unknown：模型或 reasoning_effort 任一项只有自述、猜测、旧文档，或工具可能静默降级。
 
 显式 strict 路由不接受 model_evidence=unknown。调用失败或无法证明覆盖时返回 ROUTING_BLOCKED，不由 Planner 写 owned paths。
 
@@ -60,6 +61,7 @@ Worker 必须知道：
 ~~~yaml
 status: CANDIDATE | PARTIAL | BLOCKED
 executor_model: 实际模型或 unknown
+executor_reasoning_effort: 实际强度或 unknown
 model_evidence: accepted_override | runtime_report | unknown
 actual_root: git rev-parse --show-toplevel 的原始输出；非 Git 任务写 not_applicable
 base_sha: 实际基线
@@ -126,7 +128,7 @@ PLANNED → RUNNING → CANDIDATE → INTEGRATED → ACCEPTED
 ~~~text
 Outcome: ACCEPTED | PARTIAL | BLOCKED
 Mode / routing: direct | Sol → Luna → Sol | parallel
-Route evidence: trigger、policy、requested executor、model evidence、fallback
+Route evidence: trigger、policy、requested executor／reasoning_effort、model evidence、fallback
 Baseline / final SHA: 精确值或 not_applicable
 Accepted work: 候选和范围
 Verification: 实际检查、关键产物和结果

@@ -36,8 +36,8 @@ Git 根、基线、授权、验收口径或 runtime capability 不可信时，�
 当用户明确要求“Sol 规划、Luna 执行”、牧羊人或等价分层模式时：
 
 - 默认 policy=strict。Sol 在派发被运行时接受并形成 route_receipt 前，不得修改 Worker-owned paths。
-- 必须使用运行时真实支持的 model override；需要隔离父上下文时使用 fork_turns=none，只传合同和必要真源路径。
-- 如果主 Agent 不是用户要求的 Planner、模型覆盖不可用、调用被降级，或 model_evidence 只能写 unknown，返回 ROUTING_BLOCKED。
+- 必须使用运行时真实支持的 model 与 reasoning_effort override；需要隔离父上下文时使用 fork_turns=none，只传合同和必要真源路径。
+- 如果主 Agent 不是用户要求的 Planner、模型或 reasoning_effort 覆盖不可用、调用被降级，或 model_evidence 只能写 unknown，返回 ROUTING_BLOCKED。
 - 只有用户另行授权 fallback，Sol 才能接管实现；不得静默用 Sol 完成后声称已分流。
 - Sol 可以继续做只读规划、diff 审查、最终裁决及纯协调性的 Git 操作；需要修改实现或解决代码冲突时交回 Worker。
 
@@ -62,7 +62,7 @@ Git 根、基线、授权、验收口径或 runtime capability 不可信时，�
 | 架构、权限、高风险决策和最终验收 | 主 Agent／fresh reviewer | Sol |
 
 - 模型名以当前运行时为准；用户指定不可用模型时报告限制，不静默替换。
-- 使用当前可用的最低充分 reasoning_effort。High 以上只在代表性任务证明有质量收益时使用。
+- Luna Agent（explorer 与 worker）默认使用 reasoning_effort=high，写入 Worker 不得低于 high；用户明确指定其他强度或运行时不支持时除外。xhigh／max 只在代表性任务证明有质量收益时使用；非 Luna 执行者仍使用最低充分强度。
 - Terra 可在已有同类、同环境的代表性失败证据成立时直接选择；否则必须先排除合同、上下文、环境、权限和写入冲突。第一次失败或文件较多不是升级证据。
 
 ## 4. 派发前读取有界合同
