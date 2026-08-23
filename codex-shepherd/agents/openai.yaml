@@ -1,4 +1,0 @@
-interface:
-  display_name: "Codex 牧羊人"
-  short_description: "Sol 规划与验收，Luna 执行，以证据控制升级和收口"
-  default_prompt: "使用 $codex-shepherd：由 Sol 规划和验收、Luna 执行，显式分流无法证明时先停止。"

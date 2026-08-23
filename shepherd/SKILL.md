@@ -1,9 +1,9 @@
 ---
-name: codex-shepherd
-description: "用 Planner–Executor 路由让 Sol 负责规划与最终验收、Luna 执行边界明确的实现和测试，并以证据控制 Terra 升级。当用户明确要求牧羊人／包工头／Shepherd／dispatcher、Sol→Luna、降低 Sol 执行成本，或需要带任务合同与验收 oracle 的子 Agent／multi-agent 协同时使用；普通解释、单点微改和一般 worktree 操作不使用。"
+name: shepherd
+description: "用 Planner–Executor 路由让 Sol 负责规划与最终验收、Luna 执行边界明确的实现和测试，并以证据控制 Terra 升级。当用户明确调用 $shepherd 或要求牧羊人／包工头／Shepherd／dispatcher、Sol→Luna、降低 Sol 执行成本，或需要带任务合同与验收 oracle 的子 Agent／multi-agent 协同时使用；普通解释、单点微改和一般 worktree 操作不使用。"
 ---
 
-# Codex 牧羊人
+# Shepherd
 
 本 Skill 是模型路由器、委派准入器和验收控制器。目标是在权限与质量门槛不降低的前提下，最小化得到一个 ACCEPTED 结果的预期成本；不要把 Agent 数量、并行度、原始 token 或代码量当作成果。
 

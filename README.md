@@ -1,4 +1,4 @@
-# Codex 牧羊人 / Shepherd Skill
+# Shepherd Skill
 
 一个证据驱动的 Planner–Executor Skill：Sol 负责真源、规划和最终验收，Luna 承担边界明确的实现与测试，Terra 只在证据表明 Luna 不足时介入。
 
@@ -11,7 +11,7 @@ Codex 的用户级 Skill 入口位于 ~/.agents/skills。推荐保留 Git checko
 ~~~bash
 git clone https://github.com/xiaosys/shepherd-skill.git
 mkdir -p "$HOME/.agents/skills"
-ln -s "$(pwd)/shepherd-skill/codex-shepherd" "$HOME/.agents/skills/codex-shepherd"
+ln -s "$(pwd)/shepherd-skill/shepherd" "$HOME/.agents/skills/shepherd"
 ~~~
 
 如果目标已存在，先确认来源，不要直接覆盖。Codex 通常会自动发现变更；未出现时再重启或刷新。
@@ -19,7 +19,7 @@ ln -s "$(pwd)/shepherd-skill/codex-shepherd" "$HOME/.agents/skills/codex-shepher
 ## 使用
 
 ~~~text
-$codex-shepherd
+$shepherd
 
 请让 Sol 读取真源、定义合同并做最终验收，把边界明确的实现和测试交给 Luna。
 ~~~
@@ -34,11 +34,11 @@ $codex-shepherd
 
 ## English summary
 
-Codex Shepherd is an evidence-driven Planner–Executor skill. Sol owns source-of-truth reading, planning, risk decisions, and final acceptance; Luna performs bounded implementation and tests; Terra is reserved for evidence-backed capability gaps.
+Shepherd is an evidence-driven Planner–Executor skill. Sol owns source-of-truth reading, planning, risk decisions, and final acceptance; Luna performs bounded implementation and tests; Terra is reserved for evidence-backed capability gaps.
 
 Explicit Sol-to-Luna requests use a strict pre-write routing lock. Implicit activation remains adaptive so tiny tasks are not burdened with delegation overhead. Savings are reported only when comparable usage evidence exists.
 
-Install the codex-shepherd directory under ~/.agents/skills, preferably as a symlink to a Git checkout.
+Install the shepherd directory under ~/.agents/skills, preferably as a symlink to a Git checkout.
 
 ## License
 
