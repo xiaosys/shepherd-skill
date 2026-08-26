@@ -79,16 +79,23 @@ Git 根、基线、授权、验收口径或 runtime capability 不可信时，�
 - 多候选集成时，若可用则使用 worktree-release-coordination；否则仍由唯一协调者串行集成。Worker 不合并、变基或解决共享冲突。
 - 不自动删除 worktree、分支、备份或用户文件。
 
-## 5. 用证据验收，不用 Agent 信心
+## 5. 按语义风险审查与工件交接
+
+- 默认低风险任务由主 Sol 验收，不收取固定 reviewer 税。只有用户明确要求，或语义风险涉及权限／安全／隐私、破坏性数据、生产／发布边界、共享 schema／API／迁移、并发／幂等、多个候选共享契约集成时，才启用 fresh、只读、独立 reviewer；文件数、代码行数或第一次失败单独不足以触发。因此单文件 README 错字不自动要求 reviewer，而一行权限默认值变化必须触发 reviewer。
+- Reviewer 不写实现、不等于 Terra 升级，也不替代主 Sol 的最终 `ACCEPTED`。高风险 reviewer 不可用或证据不足时不得 `ACCEPTED`；发现问题优先 follow-up 原 Luna，不按 finding 新开多个修复 Agent。字段和门禁见 [references/routed-contracts.md](references/routed-contracts.md)。
+- 小工件 inline；仅当工件大到需要截断、反复传递或明显挤占主上下文时才用 `local_files`。派发前生成唯一 `run_id`，父任务必须提供精确的绝对 `authorized_handoff_root`；生成前校验 realpath 位于该目录内，拒绝 `..`、越界或 symlink 跳转。没有精确授权只能 inline；不得默认推导 `~/.codex`、`/tmp` 或任何 Git 根外目录，Git 根外只是避免污染的偏好，不能推导写权限；工件不得含密钥或无关隐私，不自动清理。实际 manifest/hash 只在候选回执生成。
+
+## 6. 用证据验收，不用 Agent 信心
 
 - 候选必须绑定 git rev-parse --show-toplevel 的真实输出、base SHA、candidate SHA、changed paths、实际检查、未测项和风险。
-- reviewer 必须先回报实际 Git root、HEAD、dirty state 和检查；错根、错 SHA、空输出、工具错误、旧工作树或只复述实现说明均不是 PASS。
+- 候选必须声明 `candidate_binding_mode`；高风险 fresh review 优先不可变 commit SHA，未提交绑定只有 staged 为空且无候选 untracked 时才有效。reviewer 必须逐项匹配 run_id、HEAD、binding mode、staged/untracked、diff scope、实际内容 hash、Git root、dirty state 和检查。任何改动都会使旧 PASS 失效；最终 integrated SHA 与 reviewed candidate 不一致时必须复审／重核，并在最终报告显示 Independent review 证据。
+- 错根、错 SHA、空输出、工具错误、旧工作树或只复述实现说明均不是 PASS。
 - 命令退出 0 只证明该命令成功；验收要求产物或下游行为时必须检查对应结果。
 - Worker 分支通过不代表集成树通过。只有精确 integrated SHA 完成所需聚焦验证、回归和最终门禁后，才可 ACCEPTED。
 - 低等级证据不得升级为 staging、pilot、production 或其他更高等级 GO。
 - 验证一个足以改变结论的最小反例；若出现未知 dirty state、目标 SHA 改变、验收冲突或无法解释的失败，停止接受新候选。
 
-## 6. 失败、沟通与成本
+## 7. 失败、沟通与成本
 
 按原因处理失败：缺上下文由 Sol 补真源并 follow-up；合同模糊由 Sol 重写；环境错误先修环境；写入冲突先停止并发；工具或 reviewer 故障保持 unverified；能力不足按 reference 的证据门升级 Terra。
 
