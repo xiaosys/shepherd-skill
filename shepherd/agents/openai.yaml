@@ -1,4 +1,4 @@
 interface:
   display_name: "Shepherd"
-  short_description: "Sol 规划与验收，Luna 执行，以证据控制升级和收口"
-  default_prompt: "使用 $shepherd：由 Sol 规划和验收、Luna 从 high reasoning 起步执行，显式分流无法证明时先停止。"
+  short_description: "Astra 规划验收，低成本模型主动执行，按证据升级并保留审批"
+  default_prompt: "使用 $shepherd：Astra 规划验收，主动将有界实现交给 Luna high、只读辅助交给 Luna medium；按任务证据选择 Terra/Sol，不重复劳动，保留审批和指定路由。"

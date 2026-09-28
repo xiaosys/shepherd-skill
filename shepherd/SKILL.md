@@ -1,104 +1,88 @@
 ---
 name: shepherd
-description: "用 Planner–Executor 路由让 Sol 负责规划与最终验收、Luna 执行边界明确的实现和测试，并以证据控制 Terra 升级。当用户明确调用 $shepherd 或要求牧羊人／包工头／Shepherd／dispatcher、Sol→Luna、降低 Sol 执行成本，或需要带任务合同与验收 oracle 的子 Agent／multi-agent 协同时使用；普通解释、单点微改和一般 worktree 操作不使用。"
+description: "Astra 负责规划与最终验收，主动将有界实现、检索和测试交给低成本 subagent，按证据升级模型。用户调用牧羊人／Shepherd／dispatcher、要求 Astra 计划与便宜模型执行、降低主模型消耗或多 Agent 协作时使用；已获准的非平凡开发也可按此路由。默认只调度分发、不亲自执行，仅纯问答直接回答，分析请求不获得写入权。"
 ---
 
 # Shepherd
 
-本 Skill 是模型路由器、委派准入器和验收控制器。目标是在权限与质量门槛不降低的前提下，最小化得到一个 ACCEPTED 结果的预期成本；不要把 Agent 数量、并行度、原始 token 或代码量当作成果。
+目标是降低完成并验收的总成本，包括 Planner 上下文、执行、等待、返工和审查；Agent 数量不是成果。默认采用 Astra Planner + 低成本 Executor，具体档位是可校准起点，不是最优性或额度节省保证。
 
-Skill 是提示级策略，不是硬隔离。真正的路由证据来自当前运行时能力、带 model override 的派发调用、Worker 回执和最终验收。
+## 1. 权限与角色
 
-## 1. 先锁定真源、授权与运行时
+- 用户和适用 AGENTS.md 高于本 Skill。先核实目标、授权、当前真源和验收条件；Git 目标核对真实根、HEAD、分支和相关 dirty，非 Git 目标记录获准绝对根、精确路径和初始 hash，不能为满足证据字段运行 git init。
+- Astra 负责规划、业务取舍、分配、必要反例和最终验收，默认不亲自执行工具性工作；检索、读代码、实现、测试、日志归纳一律交给 Executor。父任务是子任务权限上限，模型更强或委派成功不增加权限。
+- 沿用项目既有调度中心。Sage/Hermes 已负责项目派单时，Codex 只组织当前合同内的子任务，不另建项目级计划、重复派单或循环转交 Sage；合同已足够明确就补必要缺口，不重写全套需求。
+- 作用域只允许主 Codex 写规则、画像、索引、Skill 真源等时，子 Agent 仅提交只读分析或 inline 候选，由主 Codex 复核落盘；此例外须记录，不能扩大为业务代码接管。
 
-规划或派发前：
+## 2. 主动委派，避免拆碎
 
-1. 读取适用的系统、用户和 AGENTS.md；它们高于本 Skill。
-2. 核对目标目录、真实 Git 根、分支、HEAD、dirty state、任务真源、验收标准和已有候选。外部 Agent／reviewer 必须先运行并回传 git rev-parse --show-toplevel，不得把输入的目标子目录当作 Git 根；未知改动不得被纳入、覆盖、清理或提交。
-3. 查询当前运行时支持的 Agent 角色、模型覆盖、推理强度、上下文继承方式和并发槽，不从旧文档猜测。
-4. 父任务的读写、联网、提交、推送、部署、真实数据和外部操作授权是所有子 Agent 的绝对上限。
-5. 当前处于计划、审查或诊断模式时，只允许相应的只读委派；路由不会扩大执行权限。
+默认先识别可隔离的执行包，不等待用户每次点名 subagent：
 
-Git 根、基线、授权、验收口径或 runtime capability 不可信时，先修复上下文或返回 BLOCKED，不派发实现。
-
-## 2. 选择最小充分路由
-
-优先判断任务能否由确定性工具、脚本或一次直接检查完成；“Luna 更便宜”本身不是启动 Agent 的理由。
-
-| 模式 | 适用条件 | 路由 |
+| 模式 | 使用条件 | 行为 |
 | --- | --- | --- |
-| direct | 解释、只读小检查、单点微改，或委派成本不低于执行成本 | 主 Agent 直接完成 |
-| routed | 有界实现或测试会占用较多上下文，且可定义独立合同与 oracle | Sol 规划 → 一个 Luna → Sol 验收 |
-| parallel | 至少两个独立包，路径不重叠，各有 oracle，且并行能缩短关键路径 | Sol 协调 → 隔离 Workers → 串行集成 |
+| direct | 纯问答与解释（不需要任何工具调用），或用户本轮明确要求主 Agent 亲自处理 | 主 Agent 直接回答，不生成委派合同 |
+| routed | 范围与验收可说明的非平凡实现、定向检索、批量整理或测试 | Astra 定义合同 → 一个低成本 Executor → Astra 验收 |
+| parallel | 至少两个可独立完成的有用包，各有 oracle、无写入冲突，能缩短关键路径 | 并行检索/检查，或获准的隔离写入；串行集成 |
 
-### 显式请求：严格路由锁
+- 默认动作是派发而不是动手。拿不准该不该委派时按 routed 处理；产生"这个太小我自己来"的念头时，先写合同再派单，只有 direct 行内两种情形例外。
+- 不把每个文件或工具调用拆成一个 Agent；同一目标、相同上下文的工作合成一个包。未知架构先派一个有界只读探查，拿到入口与风险后再派实现，避免 Planner 和 Worker 各扫一遍。
+- 每个写入范围只有一个 owner，默认一个活跃写入 Worker；可与独立只读任务并行。多写入包必须获准、使用隔离 worktree，且不共享文件、API/schema 或迁移序列。
+- 工作区不允许子 Agent 写入时只委派只读部分。只有一层内部委派，Worker 不再派 Agent；使用可用并发槽，不占满槽位，不制造没有独立成果的陪跑任务。
+- 派发后主 Agent 只做不重复且不依赖该结果的工作；没有独立工作就使用等待工具，不高频轮询或重复劳动。阶段批准覆盖多个已定义包时连续推进，不要求每包再说“继续”；到用户阶段停止点即停。
 
-当用户明确要求“Sol 规划、Luna 执行”、牧羊人或等价分层模式时：
+### 可选 Jev 预路由
 
-- 默认 policy=strict。Sol 在派发被运行时接受并形成 route_receipt 前，不得修改 Worker-owned paths。
-- 必须使用运行时真实支持的 model 与 reasoning_effort override；需要隔离父上下文时使用 fork_turns=none，只传合同和必要真源路径。
-- 如果主 Agent 不是用户要求的 Planner、模型或 reasoning_effort 覆盖不可用、调用被降级，或 model_evidence 只能写 unknown，返回 ROUTING_BLOCKED。
-- 只有用户另行授权 fallback，Sol 才能接管实现；不得静默用 Sol 完成后声称已分流。
-- Sol 可以继续做只读规划、diff 审查、最终裁决及纯协调性的 Git 操作；需要修改实现或解决代码冲突时交回 Worker。
+当 direct／routed／parallel 的边界因自然语言歧义、批量任务或反复摇摆而难以稳定判断时，可读取 [Jev 预路由说明](references/jev-routing.md)，用 TypeSafe Jev 做一次窄化、结构化的路由建议。明显的微小任务、确定性检查和已有明确合同直接按上表执行，不为“用了 AI”额外调用 Jev。
 
-### 隐式触发：自适应收益门
+- 按任务选择 `off`（原规则、不调用）、`shadow`（先固定 Planner 判断，再调用比较，不影响派单）或 `advisory`（Planner 审阅建议后决定）。未校准场景如需评估，先用 shadow；普通任务保持 off。它们是工作流约定，不是现有脚本参数。
+- Shepherd 的 Jev 判断的是任务分工，不接管逐轮工具选择。不得因接入 Jev 自动添加全对话网关、强制 `tool_choice`、切换参数生成模型或绕过 Planner；`direct` 始终指主 Agent 直接处理，不表示绕过主模型执行工具。
 
-隐式命中本 Skill 时，仅在下列收益明显覆盖任务说明、等待、重试和集成成本后选择 routed：
+- Jev 只返回建议、概率和置信度；Planner 与确定性规则拥有控制流。结果不能扩大授权、替代用户确认、覆盖 strict 模型锁、降低独立审查门、证明模型能力，或作为候选／测试／完成证据。
+- 只发送最小、脱敏的任务元数据，不发送代码正文、凭据、私人对话、候选人／薪酬等 HR 业务数据。Key 优先从 `TYPESAFE_API_KEY` 环境变量读取，缺失时可用已配置的 macOS 钥匙串；不写入 Skill、日志或任务状态。
+- 阈值必须按本地标注样本和后果校准，不把官方示例值当通用门槛。低置信度、风险信号与建议冲突、输入不完整、无 key、超时、限流或服务错误时，回退到本节现有规则并由 Planner 判断；不把 fallback 写成 Jev 成功路由。
+- 若使用 Jev，记录请求 schema 版本、实际模型、Choice／Score 原始答案、probabilities／confidence、最终采用或拒绝建议的理由；不得记录密钥或未脱敏 state。Jev 的 token/延迟另计，是否节省必须用同类任务数据验证。
+- 观测优先复用现有任务回执，区分建议、最终路由和实际执行模型。按任务类型与相近难度比较 off 和 advisory 的验收成功率、返工、总耗时及可得用量；同时纳入失败、回退和 Jev 开销。质量下降时退回 off 并定位原因，不以更少 token 抵消验收失败；具体记录方式见预路由说明。
 
-- 有界执行可从 Sol 上下文中隔离；
-- 搜索、日志或测试输出较大；
-- owned paths 和验收 oracle 清楚；
-- 不同上下文或模型可能改变结果。
+## 3. 默认模型与推理档位
 
-否则选择 direct，并用一句话说明委派为何不划算。并行只优化关键路径，不自动代表更省钱。
+先核实本次运行时的模型、角色、override、上下文继承和槽位。下表是 Sean 的性价比优先默认值；用户或项目精确指定时遵守指定，不修改活跃任务的模型配置。
 
-## 3. 分开 Agent 角色与模型
+| 工作 | 模型 / 起始档位 |
+| --- | --- |
+| 主规划与最终验收 | gpt-6-astra / 保留当前设置；由用户选择 medium 或 high，不自动调档 |
+| 明确的只读提取、定位、摘要、机械任务 | gpt-5.6-luna / medium；确属简单低风险且支持时可 low |
+| 有界代码实现、修复、测试、需逻辑判断的执行 | gpt-5.6-luna / high |
+| 高耦合或未知根因、难以可靠拆小的执行；有证据的 Luna 升级 | gpt-5.6-terra / high |
+| 高风险独立只读审查、Terra 仍不足的复杂执行 | gpt-5.6-sol / high |
+| 超出上述路线的困难问题 | Astra 重新规划；接管执行或增加昂贵 reviewer 前说明原因并获对应授权 |
 
-| 工作 | Agent 角色 | 默认模型 |
-| --- | --- | --- |
-| 有界只读搜索、范围核对、大输出归纳 | explorer | gpt-5.6-luna |
-| 有界实现、测试、迁移或文档 | worker | gpt-5.6-luna |
-| 已证实超出 Luna 的复杂执行 | worker | gpt-5.6-terra |
-| 架构、权限、高风险决策和最终验收 | 主 Agent／fresh reviewer | Sol |
+- 常规开发先由 Astra 拆成 Luna high 能独立验收的包；不能可靠拆小的高耦合工作可直接选 Terra high，写一句具体复杂度或同类失败证据，不强迫先让 Luna 失败。
+- 不默认使用 xhigh/max/ultra；不把 high 自动降为 low 来换表面低价。用户要求速度优先时可调整路线，但不从排行榜或模型名字推断任务成功率。
+- 创建子 Agent 时显式传 model 与 reasoning_effort，并使用当前工具兼容的有限/无继承方式；新 Worker 默认 fork_turns=none，只传合同与必要路径，避免继承昂贵长上下文或意外沿用 Astra。运行时语法以实际工具为准。
+- 角色名不等于模型。工具若不能证明 override 生效，model_evidence=unknown，不能声称已完成低成本路由；用户指定模型不可用时不静默替换。
 
-- 模型名以当前运行时为准；用户指定不可用模型时报告限制，不静默替换。
-- Luna Agent（explorer 与 worker）默认使用 reasoning_effort=high，写入 Worker 不得低于 high；用户明确指定其他强度或运行时不支持时除外。xhigh／max 只在代表性任务证明有质量收益时使用；非 Luna 执行者仍使用最低充分强度。
-- Terra 可在已有同类、同环境的代表性失败证据成立时直接选择；否则必须先排除合同、上下文、环境、权限和写入冲突。第一次失败或文件较多不是升级证据。
+## 4. 路由约束与失败恢复
 
-## 4. 派发前读取有界合同
+- 默认 policy=adaptive：允许在上述低成本执行池内按任务证据选择 Luna/Terra/Sol，不意味着 Planner 可接管执行。明确指定 Planner/Executor 组合、要求严格分层或项目合同锁定模型时，相关模型采用 strict。
+- strict 下实际 Planner 不符、指定模型/档位不可用或执行 override 无证据，报告 ROUTING_BLOCKED，只停依赖该路由的分支，继续获准只读工作。不能静默换模型或亲自实现；只有明确 fallback 授权才可改变锁定路线。
+- adaptive 下工具不可用先尝试符合当前授权的支持模型；低成本池不可用时报告阻塞，不静默换成 Astra 执行。工具/环境错误不通过升级模型“解决”。
+- 失败先分清上下文、合同、环境、权限、冲突和能力。默认一次初始执行 + 至多一次同目标定向返修；返修须有新的可验证假设或修正证据。相同问题无实质进展时停止原路线，重新拆分或按证据升级；改写错误名称、换 Agent 不重置次数。
+- 进展指新证据排除原因、原验收项通过或缺陷明确减少，不是多改文件或多写解释。预算用尽不等于任务完成；交付已完成部分和阻塞，既有阶段授权内有新证据可重拟合同继续，不反复让用户确认不变范围。
 
-选择 routed 或 parallel 后，必须先读取 [references/routed-contracts.md](references/routed-contracts.md)，填写 route_receipt 与任务合同，再派发。
+## 5. 合同、回传与主模型节省
 
-共同边界：
+普通只读辅助任务使用 brief：run_id、真实目标根、精确读取范围、目标、禁止项、验收和停止点；回执包含模型证据、结论、所读路径/版本、检查和未验证项，不生成写入候选字段。写入候选、高风险 reviewer 或多候选集成才完整读取 [references/routed-contracts.md](references/routed-contracts.md)，保留该文件规定的全部绑定与门禁。
 
-- 默认一个活跃写入 Worker、只允许一层委派；Worker 不再递归派 Agent。
-- 每个写入者拥有互不重叠的精确路径；同一文件、迁移序列、schema 或共享契约同时只有一个 owner。
-- 告知 Worker 它不是代码库中的唯一执行者，不得回退、整理或覆盖他人的改动。
-- 普通返工优先 follow-up 原 Worker；不要并行增加第二个写入者。
-- 不占满所有槽位，为验收、恢复或用户新任务保留容量。
-- 多候选集成时，若可用则使用 worktree-release-coordination；否则仍由唯一协调者串行集成。Worker 不合并、变基或解决共享冲突。
-- 不自动删除 worktree、分支、备份或用户文件。
+- 每包包含目标、精确读写范围、非目标、基线、依赖、验收、检查与停止点；告知 Worker 不独占代码库，必须保留他人修改。合同不传完整聊天或预期审查答案。
+- 回传默认 5–8 条摘要：结果、关键证据路径/版本、检查结论、未测项、风险。长日志和 diff 留在获准位置；Planner 只读摘要与决定验收所需原文，不重新执行整个子任务。
+- follow-up 复用原 Worker，只传 run_id、变更点、新证据和剩余验收项。证据不足时补取相关片段，不让 Worker 反复复述背景或重跑已经绑定同一候选的有效检查。
+- 小工件 inline。确需文件交接时，父任务先给精确绝对 authorized_handoff_root，校验 realpath 拒绝越界、.. 或 symlink 跳转；不默认推导 /tmp、~/.codex 或仓库外写权限。工件无密钥或无关隐私，不自动清理。
 
-## 5. 按语义风险审查与工件交接
+## 6. 验收与收口
 
-- 默认低风险任务由主 Sol 验收，不收取固定 reviewer 税。只有用户明确要求，或语义风险涉及权限／安全／隐私、破坏性数据、生产／发布边界、共享 schema／API／迁移、并发／幂等、多个候选共享契约集成时，才启用 fresh、只读、独立 reviewer；文件数、代码行数或第一次失败单独不足以触发。因此单文件 README 错字不自动要求 reviewer，而一行权限默认值变化必须触发 reviewer。
-- Reviewer 不写实现、不等于 Terra 升级，也不替代主 Sol 的最终 `ACCEPTED`。高风险 reviewer 不可用或证据不足时不得 `ACCEPTED`；发现问题优先 follow-up 原 Luna，不按 finding 新开多个修复 Agent。字段和门禁见 [references/routed-contracts.md](references/routed-contracts.md)。
-- 小工件 inline；仅当工件大到需要截断、反复传递或明显挤占主上下文时才用 `local_files`。派发前生成唯一 `run_id`，父任务必须提供精确的绝对 `authorized_handoff_root`；生成前校验 realpath 位于该目录内，拒绝 `..`、越界或 symlink 跳转。没有精确授权只能 inline；不得默认推导 `~/.codex`、`/tmp` 或任何 Git 根外目录，Git 根外只是避免污染的偏好，不能推导写权限；工件不得含密钥或无关隐私，不自动清理。实际 manifest/hash 只在候选回执生成。
-
-## 6. 用证据验收，不用 Agent 信心
-
-- 候选必须绑定 git rev-parse --show-toplevel 的真实输出、base SHA、candidate SHA、changed paths、实际检查、未测项和风险。
-- 候选必须声明 `candidate_binding_mode`；高风险 fresh review 优先不可变 commit SHA，未提交绑定只有 staged 为空且无候选 untracked 时才有效。reviewer 必须逐项匹配 run_id、HEAD、binding mode、staged/untracked、diff scope、实际内容 hash、Git root、dirty state 和检查。任何改动都会使旧 PASS 失效；最终 integrated SHA 与 reviewed candidate 不一致时必须复审／重核，并在最终报告显示 Independent review 证据。
-- 错根、错 SHA、空输出、工具错误、旧工作树或只复述实现说明均不是 PASS。
-- 命令退出 0 只证明该命令成功；验收要求产物或下游行为时必须检查对应结果。
-- Worker 分支通过不代表集成树通过。只有精确 integrated SHA 完成所需聚焦验证、回归和最终门禁后，才可 ACCEPTED。
-- 低等级证据不得升级为 staging、pilot、production 或其他更高等级 GO。
-- 验证一个足以改变结论的最小反例；若出现未知 dirty state、目标 SHA 改变、验收冲突或无法解释的失败，停止接受新候选。
-
-## 7. 失败、沟通与成本
-
-按原因处理失败：缺上下文由 Sol 补真源并 follow-up；合同模糊由 Sol 重写；环境错误先修环境；写入冲突先停止并发；工具或 reviewer 故障保持 unverified；能力不足按 reference 的证据门升级 Terra。
-
-只在真源确定、派发成功、候选形成、审查改变方向、集成验证结束或真正阻塞时更新用户。完成 stop_after 后停止，不自动启动下一包。
-
-若运行时提供 usage，按模型记录 input、cached input、uncached input、cache-write input、output、重试和验收结果。没有可比基线时固定报告“路由已执行，节省量未测”，不得用调用了 Luna、并行数或 API 标价推断 Codex 账户节省。
+- 低风险由主 Astra 核对证据并做必要的聚焦检查，不固定再开 reviewer；明确要求或涉及权限/安全/隐私、破坏性数据、生产/发布、共享 schema/API/迁移、并发/幂等及共享契约集成时，保留 fresh、只读、独立 reviewer，默认 Sol high。
+- Reviewer 不写实现，不替代主 Astra 最终判断。高风险独立审查不可用、候选绑定不匹配或证据不足时不得 ACCEPTED；不要为了节省额度隐藏缺陷或降低既定门槛。
+- Git 候选绑定真实根、run_id、精确 base/candidate SHA 或获准的完整 diff 绑定；非 Git 绑定授权 roster 与内容 hash。任何被审内容变化使旧 PASS 失效；集成后绑定精确 integrated SHA 或最终内容 manifest。错根、错 SHA、旧回执、空输出、退出 0 或执行者自述都不是验收证明。
+- 执行者按合同运行相关检查；不默认跑全套。主 Agent 核对产物并检验必要反例；已有有效检查不重复。只有内容、依赖、环境变化、失败或未解决风险才补相关验证；仓库规定的全套、独立复审与最终门禁不可省略。
+- 向 Sean 汇报结果、关键证据、未验证项和一个下一步；不逐条搬运内部合同。完成 stop_after 后停止该 Worker；Planner 在既有阶段授权内继续依赖包，不能自动开启新阶段。
+- 记录可得的模型/档位、真实路由证据、返修次数、总耗时、usage 与最终验收；数据不可得就写 unmeasured。子 Agent 也消耗账户额度，API 单价和 Agent 数量不等于订阅节省比例。没有同类可比基线时报告“路由已执行，节省量未测”。
